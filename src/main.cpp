@@ -1,48 +1,38 @@
 #include "Arduino.h"
 #include "FastLED.h"
+#include "palette.h"
 
-#define LED_COUNT 30
+#define LED_COUNT 9
 #define LED_DRIVER WS2812
 #define LED_COLOR_ORDER GRB
 #define LED_DATA_PIN 1
 
-#define COOLING 55   // smaller = taller flames
+#define COOLING 60   // smaller = taller flames
+#define COOL_STAGE 18 // separation between intensity stages
 #define SPARKING 180 // smaller = more flickery
-#define SPLIT 10 // lights per leg
+#define SPLIT 9 // lights per leg
+#define FPS 30
+#define REVERSE false // reverse the flame direction
 
 CRGB led[LED_COUNT];
-byte heat[LED_COUNT];
+uint8_t heat[LED_COUNT];
+CRGBPalette16 palettes[3] = { HeatColors_p, HeatGreen_p, HeatBlue_p };
+uint8_t stage = 0;
 CRGBPalette16 currentPal;
-
-extern const TProgmemRGBPalette16 HeatGreen_p FL_PROGMEM =
-{
-    0x000000,
-    0x003300, 0x006600, 0x009900, 0x00CC00, 0x00FF00,
-    0x33FF00, 0x66FF00, 0x99FF00, 0xCCFF00, 0xFFFF00,
-    0xFFFF33, 0xFFFF66, 0xFFFF99, 0xFFFFCC, 0xFFFFFF
-};
-
-extern const TProgmemRGBPalette16 HeatBlue_p FL_PROGMEM =
-{
-    0x000000,
-    0x000033, 0x000066, 0x000099, 0x0000CC, 0x0000FF,
-    0x3300FF, 0x6600FF, 0x9900FF, 0xCC00FF, 0xFF00FF,
-    0xFF33FF, 0xFF66FF, 0xFF99FF, 0xFFCCFF, 0xFFFFFF
-};
-
 
 /* I borrowed _very heavily_ from a FastLED example for this function:
    https://github.com/FastLED/FastLED/blob/master/examples/Fire2012WithPalette/Fire2012WithPalette.ino
 */
-void FlameTick(byte base, byte count) {
+void FlameTick(uint8_t base, uint8_t count, bool reverse) {
   // cool the pixels
-  byte num_leds = base+count;
-  for( int i=base; i < base+count; i++) {
-    heat[i] = qsub8( heat[i],  random8(0, ((COOLING * 10) / count) + 2));
+  uint8_t num_leds = base+count;
+  uint8_t cooling = COOLING + (COOL_STAGE * stage);
+  for( uint8_t i=base; i < base+count; i++) {
+    heat[i] = qsub8( heat[i],  random8(0, ((cooling * 10) / count) + 2));
   }
 
   // drift and cool
-  for( int k=num_leds-1; k >= base+2; k--) {
+  for( uint8_t k=num_leds-1; k >= base+2; k--) {
     heat[k] = (heat[k - 1] + heat[k - 2] + heat[k - 2] ) / 3;
   }
 
@@ -53,28 +43,69 @@ void FlameTick(byte base, byte count) {
   }
 
   // map
-  for ( int j=base; j < num_leds; j++ ) {
-    byte colorindex = scale8( heat[j], 240 ); // better for palette use
-    led[j] = ColorFromPalette(currentPal, colorindex);
+  for ( uint8_t j=base; j < num_leds; j++ ) {
+    uint8_t pixelnumber = j;
+    if( reverse ) { pixelnumber = (num_leds-1) - j; }
+    uint8_t colorindex = scale8( heat[pixelnumber], 240 ); // better for palette use
+    led[pixelnumber] = ColorFromPalette(currentPal, colorindex);
   }
 }
 
 void setup() {
   delay(800);  // short boot delay to allow for resets/uploads
   FastLED.addLeds<LED_DRIVER, LED_DATA_PIN, LED_COLOR_ORDER>(led, LED_COUNT);
-  currentPal = HeatGreen_p;
+  currentPal = palettes[0];
+  FastLED.setBrightness(128);
   FastLED.show();
 }
 
 void loop() {
-  for (byte f=0; f < LED_COUNT; f+=SPLIT) {
-    if (f+SPLIT > LED_COUNT) { }
-    else {
-      FlameTick(f, SPLIT);
+  static uint32_t stage_ticks = 0;
+  static uint32_t color_ticks = 0;
+  static uint8_t palette_index = 0;
+
+  // randomly change the stage of intensity
+  if (stage_ticks > (500 / FPS)) {
+    // AT least half a second has elapsed since resets
+    if ((random8(0,100) < 20) || (stage_ticks > 10000 / FPS)) {
+      // 20% chance + guaranteed if it's been longer than 10s without a change
+      stage = random8(4);
+      stage_ticks = 0;
     }
   }
-  // FlameTick(0, 10);
 
-  FastLED.delay(15);
+  //randomly change the color palette
+  if (palette_index == 0) {
+    // default palette on, lower chance of change
+    if (color_ticks > 10000 / FPS) {
+      // only change if it's been at least 10s
+      if ((random8(0,100) < 5) || (color_ticks > 90000 / FPS)) {
+        // 5% chance + guaranteed if it's been longer than 90s without a change
+        palette_index = random8(1,3);
+        color_ticks = 0;
+      }
+    }
+  }
+  else {
+    // lower chance of change, not the default palette
+    if (color_ticks > 3000 / FPS) {
+      // only change if it's been at least 3s
+      if ((random8(0,100) < 30) || (color_ticks > 15000 / FPS)) {
+        // 30% chance + guaranteeed if it's been longer than 15s without change
+        palette_index = 0;
+        color_ticks = 0;
+      }
+    }
+  }
+
+  currentPal = palettes[palette_index];
+
+  for (uint8_t f=0; f < LED_COUNT; f+=SPLIT) {
+    if (f+SPLIT <= LED_COUNT) { FlameTick(f, SPLIT, REVERSE); }
+  }
+
+  FastLED.delay( 1000 / FPS );
   FastLED.show();
+  stage_ticks++;
+  color_ticks++;
 }

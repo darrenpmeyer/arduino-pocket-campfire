@@ -1,0 +1,19 @@
+#include "FastLED.h"
+
+/* Green Heat palette, modeled after FastLED's HeatColors_p */
+extern const TProgmemRGBPalette16 HeatGreen_p FL_PROGMEM =
+{
+    0x000000,
+    0x003300, 0x006600, 0x009900, 0x00CC00, 0x00FF00,
+    0x33FF00, 0x66FF00, 0x99FF00, 0xCCFF00, 0xFFFF00,
+    0xFFFF33, 0xFFFF66, 0xFFFF99, 0xFFFFCC, 0xFFFFFF
+};
+
+/* Blue Heat palette, modeled after FastLED's HeatColors_p */
+extern const TProgmemRGBPalette16 HeatBlue_p FL_PROGMEM =
+{
+    0x000000,
+    0x000033, 0x000066, 0x000099, 0x0000CC, 0x0000FF,
+    0x3300FF, 0x6600FF, 0x9900FF, 0xCC00FF, 0xFF00FF,
+    0xFF33FF, 0xFF66FF, 0xFF99FF, 0xFFCCFF, 0xFFFFFF
+};
