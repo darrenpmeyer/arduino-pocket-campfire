@@ -2,16 +2,16 @@
 #include "FastLED.h"
 #include "palette.h"
 
-#define LED_COUNT 9
-#define LED_DRIVER WS2812
-#define LED_COLOR_ORDER GRB
-#define LED_DATA_PIN 1
+#define LED_COUNT 9          // total number of LEDs
+#define LED_DRIVER WS2812    // FastLED chipset to use
+#define LED_COLOR_ORDER GRB  // Color order: RGB or GRB usually
+#define LED_DATA_PIN 1       // which Ardunio digital pin for LED clock + data
 
-#define COOLING 60   // smaller = taller flames
+#define COOLING 60    // smaller = taller flames
 #define COOL_STAGE 18 // separation between intensity stages
-#define SPARKING 180 // smaller = more flickery
-#define SPLIT 9 // lights per leg
-#define FPS 30
+#define SPARKING 180  // smaller = more flickery
+#define SPLIT 9       // lights per leg
+#define FPS 30        // frames per second, approx.
 #define REVERSE false // reverse the flame direction
 
 CRGB led[LED_COUNT];
@@ -87,7 +87,7 @@ void loop() {
     }
   }
   else {
-    // lower chance of change, not the default palette
+    // higher chance of change, since it's not the default palette
     if (color_ticks > 3000 / FPS) {
       // only change if it's been at least 3s
       if ((random8(0,100) < 30) || (color_ticks > 15000 / FPS)) {
@@ -100,6 +100,7 @@ void loop() {
 
   currentPal = palettes[palette_index];
 
+  // build the next frame for each column of fire
   for (uint8_t f=0; f < LED_COUNT; f+=SPLIT) {
     if (f+SPLIT <= LED_COUNT) { FlameTick(f, SPLIT, REVERSE); }
   }
